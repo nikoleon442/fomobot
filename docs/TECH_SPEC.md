@@ -127,8 +127,8 @@ Return all milestones m where `ratio >= m`.
    * For each `milestone` in `crossed`:
      * `alreadyNotified = MilestoneNotificationRepositoryPort.wasNotified(token.id, milestone.value)`
      * If not already notified:
-       * `NotifierPort.send(group, buildMessage(token, milestone, current))`
-       * `MilestoneNotificationRepositoryPort.recordNotification(token, milestone, group, messageId)`
+       * `NotifierPort.send(group, buildMessage(token, milestone, current))` (with rate limiting)
+       * `MilestoneNotificationRepositoryPort.recordNotification(token, milestone, group, messageId)` (only after successful send)
 3. Skip tokens with null caps; log warnings.
 4. Maintain in-memory stats (`processed`, `alertsSent`, `skipped`, `errors`).
 
@@ -325,6 +325,8 @@ export class SupabaseMilestoneWriter implements MilestoneNotificationRepositoryP
 ### Telegram Adapter
 
 Sends Markdown messages to group chat IDs; retries ×3 on 429/5xx; logs failures.
+**Rate limiting**: Enforces 1 message per second to prevent Telegram API throttling.
+**Reliability**: Milestone notifications are only recorded in database after successful message delivery.
 
 ### Config Adapter
 
@@ -389,8 +391,9 @@ function buildMessage(t:Token, milestone:MilestoneConfig, cap:USD):string {
 | Type     | Strategy                                             |
 | -------- | ---------------------------------------------------- |
 | Provider | Retry 3× w/backoff → log → skip                      |
-| Telegram | Retry 3× → log → continue                            |
+| Telegram | Retry 3× → log → continue (with rate limiting)      |
 | DB read  | Single retry → if fails, skip whole group this cycle |
+| **Data consistency** | Milestone notifications only recorded after successful message delivery |
 
 ---
 
@@ -427,10 +430,10 @@ Deploy via Railway CLI/API token on push to `main`.
 * **Selective Supabase writes:** Only milestone notifications are persisted; token data remains read-only.
 * **Dynamic milestone configuration:** Milestones loaded from database at runtime; changes require service restart or cache refresh.
 * **Coverage gaps:** CoinGecko/CMC may miss new tokens → Birdeye adapter ready.
-* **Rate limits:** mitigated via batching + configurable interval.
+* **Rate limits:** mitigated via batching + configurable interval + Telegram rate limiting (1 msg/sec).
 * **Cycle lag:** monitor and scale horizontally if avg cycle > interval.
 * **Notification deduplication:** Unique constraint on (token_id, milestone_value) prevents duplicate alerts.
-* **Data consistency:** Milestone notifications are recorded atomically with Telegram sends.
+* **Data consistency:** Milestone notifications are only recorded after successful Telegram message delivery, ensuring failed sends can be retried.
 * **Milestone management:** Admin interface needed for milestone configuration changes.
 
 ---

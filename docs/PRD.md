@@ -127,7 +127,8 @@ UNIQUE(token_id, milestone_value)
 2. For each milestone crossed in this cycle:
 
    * **Check if notification already sent** by querying `milestone_notifications` table.
-   * If not previously notified, post a **new Telegram message** with **custom milestone label** and **record the notification**.
+   * If not previously notified, post a **new Telegram message** with **custom milestone label**.
+   * **Only record the notification in database after successful message delivery** to ensure data consistency.
 3. If market-cap data missing → skip & log.
 4. Milestone notification history is persisted to prevent duplicate alerts.
 
@@ -187,6 +188,8 @@ Called: ${FIRST_CALLED_AT_UTC}
 * One message per milestone crossing.
 * Sent simultaneously to the group owning that token.
 * **Custom milestone labels** from database (e.g., "2×", "🚀 5×", "10×").
+* **Rate limiting**: Maximum 1 message per second to prevent Telegram API throttling.
+* **Reliable delivery**: Milestone notifications are only recorded in database after successful message delivery.
 
 ---
 
@@ -224,6 +227,8 @@ BIRDEYE_API_KEY=...
 * Retry (3×) on 429 / 5xx for provider & Telegram.
 * On final failure: log → continue.
 * No data persistence or compensation logic.
+* **Rate limiting**: Telegram messages are limited to 1 per second to prevent API throttling.
+* **Data consistency**: Failed message deliveries do not mark milestones as notified, allowing retry in future cycles.
 
 ---
 

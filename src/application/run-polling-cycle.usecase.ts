@@ -151,11 +151,11 @@ export class RunPollingCycleUseCase {
         return;
       }
 
-      // Send the notification
+      // Send the notification first
       const message = MessageBuilder.buildMilestoneMessage(token, milestone, currentCap);
       await this.notifier.send(group, message);
 
-      // Record the notification in the database
+      // Only record the notification in the database if sending was successful
       await this.milestoneNotificationRepository.recordNotification(
         token,
         milestone,
@@ -177,6 +177,7 @@ export class RunPollingCycleUseCase {
         error: error.message,
       });
       this.currentStats.errors++;
+      // Note: We don't record the notification in the database if sending failed
     }
   }
 

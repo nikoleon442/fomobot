@@ -238,6 +238,67 @@ describe('TelegramAdapter Integration', () => {
     });
   });
 
+  describe('rate limiting', () => {
+    it('should enforce 1 message per second rate limit', async () => {
+      // Arrange
+      const message = 'Test message';
+      const mockResponse = {
+        data: {
+          ok: true,
+          result: {
+            message_id: 123,
+            chat: { id: -1001234567890 },
+          },
+        },
+      };
+
+      httpService.post.mockReturnValue(of(mockResponse));
+
+      const startTime = Date.now();
+
+      // Act - send two messages in quick succession
+      await adapter.send('fsm', message);
+      await adapter.send('fsm', message);
+
+      const endTime = Date.now();
+      const totalTime = endTime - startTime;
+
+      // Assert - should take at least 1 second between messages
+      expect(totalTime).toBeGreaterThanOrEqual(1000);
+      expect(httpService.post).toHaveBeenCalledTimes(2);
+    });
+
+    it('should not delay if enough time has passed since last message', async () => {
+      // Arrange
+      const message = 'Test message';
+      const mockResponse = {
+        data: {
+          ok: true,
+          result: {
+            message_id: 123,
+            chat: { id: -1001234567890 },
+          },
+        },
+      };
+
+      httpService.post.mockReturnValue(of(mockResponse));
+
+      // Act - send first message
+      await adapter.send('fsm', message);
+
+      // Wait for more than 1 second
+      await new Promise(resolve => setTimeout(resolve, 1100));
+
+      const startTime = Date.now();
+      await adapter.send('fsm', message);
+      const endTime = Date.now();
+
+      // Assert - should not add delay since enough time has passed
+      expect(endTime - startTime).toBeLessThan(100);
+      expect(httpService.post).toHaveBeenCalledTimes(2);
+    });
+  });
+
   describe('constructor', () => {
     it('should initialize with correct base URL', () => {
       // Assert

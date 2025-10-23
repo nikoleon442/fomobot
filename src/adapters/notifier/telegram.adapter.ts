@@ -11,6 +11,8 @@ export class TelegramAdapter implements NotifierPort {
   private readonly baseUrl: string;
   private readonly maxRetries = 3;
   private readonly retryDelay = 1000; // 1 second
+  private readonly rateLimitDelay = 1000; // 1 second between messages
+  private lastMessageTime = 0;
 
   constructor(
     private readonly httpService: HttpService,
@@ -23,6 +25,9 @@ export class TelegramAdapter implements NotifierPort {
     const chatId = group === 'fsm' 
       ? this.envConfig.telegramChatIdFsm 
       : this.envConfig.telegramChatIdIssam;
+
+    // Apply rate limiting (1 message per second)
+    await this.enforceRateLimit();
 
     await this.sendWithRetry(chatId, message);
   }
@@ -81,5 +86,18 @@ export class TelegramAdapter implements NotifierPort {
 
   private sleep(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  private async enforceRateLimit(): Promise<void> {
+    const now = Date.now();
+    const timeSinceLastMessage = now - this.lastMessageTime;
+    
+    if (timeSinceLastMessage < this.rateLimitDelay) {
+      const waitTime = this.rateLimitDelay - timeSinceLastMessage;
+      this.logger.debug(`Rate limiting: waiting ${waitTime}ms before sending message`);
+      await this.sleep(waitTime);
+    }
+    
+    this.lastMessageTime = Date.now();
   }
 }
