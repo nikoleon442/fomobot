@@ -45,5 +45,5 @@ export const setupCommonMocks = () => {
   mockLogger.info.mockImplementation(() => {});
   mockLogger.warn.mockImplementation(() => {});
   mockLogger.error.mockImplementation(() => {});
-  mockLogger.log.mockImplementation(() => {});
+  mockLogger.debug.mockImplementation(() => {});
 };
