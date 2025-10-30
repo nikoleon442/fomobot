@@ -41,30 +41,32 @@ describe('MessageBuilder', () => {
   };
 
   describe('buildMilestoneMessage', () => {
-    it('should build correct message format', () => {
-      const message = MessageBuilder.buildMilestoneMessage(mockToken, mockMilestone5x, 5000000);
-      
-      expect(message).toContain('🚨 *SOL* hit *5×* market cap since call-out!');
-      expect(message).toContain('Initial MC: $1.00M');
-      expect(message).toContain('Current MC: $5.00M');
-      expect(message).toContain('Called: 2024-01-01T00:00:00.000Z');
-      expect(message).toContain('⏫ Still moving — watch closely.');
+    it('should build FSM message format', () => {
+      const message = MessageBuilder.buildMilestoneMessage(mockToken, mockMilestone5x, 5000000, 'fsm');
+
+      expect(message).toContain('🚨 SOL just did a 5× since we called it in VIP group!');
+      expect(message).toContain('We called it at a MarketCap of $1.00M');
+      expect(message).toContain('It’s currently at $5.00M');
+      expect(message).toContain('⏫And it’s still climbing!');
     });
 
-    it('should handle different milestone values', () => {
-      const message = MessageBuilder.buildMilestoneMessage(mockToken, mockMilestone2x, 2000000);
-      
-      expect(message).toContain('*2×*');
+    it('should build Issam message format', () => {
+      const message = MessageBuilder.buildMilestoneMessage(mockToken, mockMilestone2x, 2000000, 'issam');
+
+      expect(message).toContain('صلت عملة SOL ل 2× بعد ما نشرناها');
+      expect(message).toContain('Initial MC: $1.00M');
+      expect(message).toContain('Current MC: $2.00M');
+      expect(message).toContain('Called: 2024-01-01T00:00:00.000Z');
     });
 
     it('should format large numbers correctly', () => {
-      const message = MessageBuilder.buildMilestoneMessage(mockToken, mockMilestone10x, 1000000000);
+      const message = MessageBuilder.buildMilestoneMessage(mockToken, mockMilestone10x, 1000000000, 'issam');
       
       expect(message).toContain('Current MC: $1.00B');
     });
 
     it('should format small numbers correctly', () => {
-      const message = MessageBuilder.buildMilestoneMessage(mockToken, mockMilestone2x, 2500);
+      const message = MessageBuilder.buildMilestoneMessage(mockToken, mockMilestone2x, 2500, 'issam');
       
       expect(message).toContain('Current MC: $2.50K');
     });
