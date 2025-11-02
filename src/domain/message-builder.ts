@@ -28,7 +28,7 @@ export class MessageBuilder {
 
     // issam
     return [
-      `🔥 صلت وصلت ${token.symbol} ل ${milestone.milestoneLabel} بعد ما نشرناها`,
+      `\u202B\u202A🔥وصلت\u202C عملة ${token.symbol}$ ل ${milestone.milestoneLabel}$ بعد ما نشرناها\u202C`,
       `Initial MC: $${formattedInitial}`,
       `Current MC: $${formattedCurrent}`,
       `Called: ${calledAt}`,
