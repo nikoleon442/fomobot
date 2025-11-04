@@ -29,23 +29,35 @@ export class TelegramAdapter implements NotifierPort {
     // Apply rate limiting (1 message per second)
     await this.enforceRateLimit();
 
-    await this.sendWithRetry(chatId, message);
+    // Use thread ID for Issam group if configured
+    const threadId = group === 'issam' ? this.envConfig.telegramThreadIdIssam : undefined;
+    await this.sendWithRetry(chatId, message, threadId);
   }
 
-  private async sendWithRetry(chatId: string, message: string): Promise<void> {
+  private async sendWithRetry(chatId: string, message: string, threadId?: string): Promise<void> {
     let lastError: Error | null = null;
 
     for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
       try {
-        await this.sendMessage(chatId, message);
+        await this.sendMessage(chatId, message, threadId);
         return; // Success, exit retry loop
-      } catch (error) {
+      } catch (error: any) {
         lastError = error as Error;
-        this.logger.warn(`Telegram send attempt ${attempt} failed`, {
+        // Extract more detailed error information if available
+        const errorDetails: any = {
           attempt,
           error: error.message,
           chatId,
-        });
+          threadId,
+        };
+        
+        // If it's an Axios error, include response data for better debugging
+        if (error.response?.data) {
+          errorDetails.apiError = error.response.data.description || error.response.data;
+          errorDetails.statusCode = error.response.status;
+        }
+        
+        this.logger.warn(`Telegram send attempt ${attempt} failed`, errorDetails);
 
         if (attempt < this.maxRetries) {
           // Wait before retry with exponential backoff
@@ -59,13 +71,31 @@ export class TelegramAdapter implements NotifierPort {
     throw new Error(`Failed to send Telegram message after ${this.maxRetries} attempts: ${lastError?.message}`);
   }
 
-  private async sendMessage(chatId: string, message: string): Promise<void> {
+  private async sendMessage(chatId: string, message: string, threadId?: string): Promise<void> {
+    const payload: {
+      chat_id: string;
+      text: string;
+      parse_mode: string;
+      message_thread_id?: number;
+    } = {
+      chat_id: chatId,
+      text: message,
+      parse_mode: 'Markdown',
+    };
+
+    // Add thread ID if provided (for group threads)
+    // Telegram API requires message_thread_id to be a number, not a string
+    if (threadId) {
+      const threadIdNum = parseInt(threadId, 10);
+      if (isNaN(threadIdNum)) {
+        this.logger.warn(`Invalid thread ID format: ${threadId}, sending without thread ID`);
+      } else {
+        payload.message_thread_id = threadIdNum;
+      }
+    }
+
     const response = await firstValueFrom(
-      this.httpService.post(`${this.baseUrl}/sendMessage`, {
-        chat_id: chatId,
-        text: message,
-        parse_mode: 'Markdown',
-      }),
+      this.httpService.post(`${this.baseUrl}/sendMessage`, payload),
     );
 
     if (!response.data.ok) {

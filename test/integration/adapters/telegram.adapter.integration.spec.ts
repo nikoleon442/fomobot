@@ -14,6 +14,7 @@ describe('TelegramAdapter Integration', () => {
       telegramBotToken: 'test-bot-token',
       telegramChatIdFsm: '-1001234567890',
       telegramChatIdIssam: '-1001234567891',
+      telegramThreadIdIssam: undefined,
     };
 
     const mockHttpService = {
@@ -100,6 +101,71 @@ describe('TelegramAdapter Integration', () => {
           parse_mode: 'Markdown',
         }
       );
+    });
+
+    it('should send message to Issam group thread when thread ID is configured', async () => {
+      // Arrange
+      envConfig.telegramThreadIdIssam = '12345';
+      const message = 'Test message for Issam group thread';
+      const mockResponse = {
+        data: {
+          ok: true,
+          result: {
+            message_id: 125,
+            chat: { id: -1001234567891 },
+            message_thread_id: 12345,
+          },
+        },
+      };
+
+      httpService.post.mockReturnValue(of(mockResponse));
+
+      // Act
+      await adapter.send('issam', message);
+
+      // Assert
+      expect(httpService.post).toHaveBeenCalledWith(
+        'https://api.telegram.org/bottest-bot-token/sendMessage',
+        {
+          chat_id: '-1001234567891',
+          text: message,
+          parse_mode: 'Markdown',
+          message_thread_id: 12345, // Should be a number, not a string
+        }
+      );
+    });
+
+    it('should not include thread ID when sending to FSM group', async () => {
+      // Arrange
+      envConfig.telegramThreadIdIssam = '12345'; // Set thread ID but should not be used for FSM
+      const message = 'Test message for FSM group';
+      const mockResponse = {
+        data: {
+          ok: true,
+          result: {
+            message_id: 126,
+            chat: { id: -1001234567890 },
+          },
+        },
+      };
+
+      httpService.post.mockReturnValue(of(mockResponse));
+
+      // Act
+      await adapter.send('fsm', message);
+
+      // Assert
+      expect(httpService.post).toHaveBeenCalledWith(
+        'https://api.telegram.org/bottest-bot-token/sendMessage',
+        {
+          chat_id: '-1001234567890',
+          text: message,
+          parse_mode: 'Markdown',
+        }
+      );
+      // Verify thread_id is not included in the payload
+      const callArgs = httpService.post.mock.calls[0][1];
+      expect(callArgs.message_thread_id).toBeUndefined();
     });
 
     it('should retry on failure with exponential backoff', async () => {

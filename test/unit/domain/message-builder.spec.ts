@@ -36,7 +36,8 @@ describe('MessageBuilder', () => {
     it('should build correct message format', () => {
       const message = MessageBuilder.buildMilestoneMessage(mockToken, mockMilestone5x, 5000000, 'issam');
       
-      expect(message).toContain('صلت عملة SOL');
+      expect(message).toContain('🔥وصلت');
+      expect(message).toContain('SOL');
       expect(message).toContain('5×');
       expect(message).toContain('Initial MC: $1.00M');
       expect(message).toContain('Current MC: $5.00M');

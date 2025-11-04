@@ -18,6 +18,7 @@ const envSchema = z.object({
   TG_BOT_TOKEN: z.string().min(1, 'TG_BOT_TOKEN is required'),
   TG_CHAT_ID_FSM: z.string().min(1, 'TG_CHAT_ID_FSM is required'),
   TG_CHAT_ID_ISSAM: z.string().min(1, 'TG_CHAT_ID_ISSAM is required'),
+  TG_THREAD_ID_ISSAM: z.string().optional(),
   
   // Provider API keys (optional)
   CMC_API_KEY: z.string().optional(),
@@ -72,6 +73,10 @@ export class EnvConfig {
 
   get telegramChatIdIssam(): string {
     return this.config.TG_CHAT_ID_ISSAM;
+  }
+
+  get telegramThreadIdIssam(): string | undefined {
+    return this.config.TG_THREAD_ID_ISSAM;
   }
 
   get cmcApiKey(): string | undefined {

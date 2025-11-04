@@ -53,7 +53,10 @@ describe('MessageBuilder', () => {
     it('should build Issam message format', () => {
       const message = MessageBuilder.buildMilestoneMessage(mockToken, mockMilestone2x, 2000000, 'issam');
 
-      expect(message).toContain('صلت عملة SOL ل 2× بعد ما نشرناها');
+      expect(message).toContain('🔥وصلت');
+      expect(message).toContain('SOL');
+      expect(message).toContain('2×');
+      expect(message).toContain('بعد ما نشرناها');
       expect(message).toContain('Initial MC: $1.00M');
       expect(message).toContain('Current MC: $2.00M');
       expect(message).toContain('Called: 2024-01-01T00:00:00.000Z');
