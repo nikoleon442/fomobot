@@ -16,7 +16,7 @@ export class MessageBuilder {
 
     if (group === 'fsm') {
       return [
-        `🚨 ${token.symbol} just did a {milestone.milestoneLabel} since we called it in VIP group!`,
+        `🚨 ${token.symbol} just did a ${milestone.milestoneLabel} since we called it in VIP group!`,
         `We called it at a MarketCap of $${formattedInitial}`,
         `It’s currently at $${formattedCurrent}`,
         `⏫And it’s still climbing!`,
@@ -28,7 +28,7 @@ export class MessageBuilder {
 
     // issam
     return [
-      `\u202B\u202A🔥وصلت\u202C عملة ${token.symbol}$ ل ${milestone.milestoneLabel}$ بعد ما نشرناها\u202C`,
+      `\u202B\u202A🔥وصلت\u202C عملة ${token.symbol}$ ل ${milestone.milestoneLabel} بعد ما نشرناها\u202C`,
       `Initial MC: $${formattedInitial}`,
       `Current MC: $${formattedCurrent}`,
       `Called: ${calledAt}`,
