@@ -19,10 +19,6 @@ export class MessageBuilder {
         `🚨 ${token.symbol} just did a ${milestone.milestoneLabel} since we called it in VIP group!`,
         `We called it at a MarketCap of $${formattedInitial}`,
         `It’s currently at $${formattedCurrent}`,
-        `⏫And it’s still climbing!`,
-        `Join VIP instantly so you don’t miss the next one!`,
-        `20% off for the rest of this month!`,
-        `https://buy.stripe.com/eVq6oG1INb5Sdgq1UK0ZW0a`,
       ].join('\n');
     }
 
