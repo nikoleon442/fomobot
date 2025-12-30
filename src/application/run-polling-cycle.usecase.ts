@@ -113,31 +113,33 @@ export class RunPollingCycleUseCase {
     }
 
     try {
-      // Get all configured milestones for this token
+      // Get all configured milestones - we need ALL to track consecutive counts
       const allMilestones = milestonePolicy.getAllMilestones();
-      
-      // Check for milestone crossings
-      const crossedMilestones = milestonePolicy.crossed(
-        token.initialMarketCapUsd,
-        currentCap,
-      );
 
-      // Update consecutive counts for all milestones
+      // Update consecutive counts and send alerts for all milestones in one pass
       for (const milestone of allMilestones) {
         const key = this.getMilestoneKey(token.id, milestone.milestoneValue);
-        const isCrossed = crossedMilestones.some(m => m.milestoneValue === milestone.milestoneValue);
+        const isCrossed = milestonePolicy.isMilestoneCrossed(
+          token.initialMarketCapUsd,
+          currentCap,
+          milestone,
+        );
         
         if (isCrossed) {
           // Increment consecutive count
           const currentCount = this.consecutiveMilestoneCounts.get(key) || 0;
-          this.consecutiveMilestoneCounts.set(key, currentCount + 1);
-          this.logger.debug(`Milestone ${milestone.milestoneLabel} crossed for ${token.symbol}, consecutive count: ${currentCount + 1}`, {
+          const newCount = currentCount + 1;
+          this.consecutiveMilestoneCounts.set(key, newCount);
+          this.logger.debug(`Milestone ${milestone.milestoneLabel} crossed for ${token.symbol}, consecutive count: ${newCount}`, {
             tokenId: token.id.toString(),
             milestoneValue: milestone.milestoneValue,
-            count: currentCount + 1,
+            count: newCount,
           });
+
+          // Send alert if threshold is met
+          await this.sendMilestoneAlert(token, milestone, currentCap, group);
         } else {
-          // Reset count if milestone is not crossed
+          // Reset count if milestone is not crossed (breaks consecutive streak)
           if (this.consecutiveMilestoneCounts.has(key)) {
             this.consecutiveMilestoneCounts.delete(key);
             this.logger.debug(`Milestone ${milestone.milestoneLabel} not crossed for ${token.symbol}, resetting consecutive count`, {
@@ -146,11 +148,6 @@ export class RunPollingCycleUseCase {
             });
           }
         }
-      }
-
-      // Send alerts only for milestones that have reached the threshold
-      for (const milestone of crossedMilestones) {
-        await this.sendMilestoneAlert(token, milestone, currentCap, group);
       }
     } catch (error) {
       this.logger.error(`Error processing token ${token.symbol}`, {
