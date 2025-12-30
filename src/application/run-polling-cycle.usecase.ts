@@ -16,6 +16,8 @@ import { MarketCapProviderFactory } from '../adapters/providers/provider.factory
 export class RunPollingCycleUseCase {
   private currentStats: CycleStats;
   private marketCapProvider: MarketCapProviderPort;
+  // Track consecutive milestone crossings in memory: Map<`${tokenId}-${milestoneValue}`, count>
+  private consecutiveMilestoneCounts: Map<string, number> = new Map();
 
   constructor(
     private readonly providerFactory: MarketCapProviderFactory,
@@ -111,15 +113,41 @@ export class RunPollingCycleUseCase {
     }
 
     try {
-      // Check for milestone crossings
-      const crossedMilestones = milestonePolicy.crossed(
-        token.initialMarketCapUsd,
-        currentCap,
-      );
+      // Get all configured milestones - we need ALL to track consecutive counts
+      const allMilestones = milestonePolicy.getAllMilestones();
 
-      // Send alerts for each crossed milestone (check if already notified)
-      for (const milestone of crossedMilestones) {
-        await this.sendMilestoneAlert(token, milestone, currentCap, group);
+      // Update consecutive counts and send alerts for all milestones in one pass
+      for (const milestone of allMilestones) {
+        const key = this.getMilestoneKey(token.id, milestone.milestoneValue);
+        const isCrossed = milestonePolicy.isMilestoneCrossed(
+          token.initialMarketCapUsd,
+          currentCap,
+          milestone,
+        );
+        
+        if (isCrossed) {
+          // Increment consecutive count
+          const currentCount = this.consecutiveMilestoneCounts.get(key) || 0;
+          const newCount = currentCount + 1;
+          this.consecutiveMilestoneCounts.set(key, newCount);
+          this.logger.debug(`Milestone ${milestone.milestoneLabel} crossed for ${token.symbol}, consecutive count: ${newCount}`, {
+            tokenId: token.id.toString(),
+            milestoneValue: milestone.milestoneValue,
+            count: newCount,
+          });
+
+          // Send alert if threshold is met
+          await this.sendMilestoneAlert(token, milestone, currentCap, group);
+        } else {
+          // Reset count if milestone is not crossed (breaks consecutive streak)
+          if (this.consecutiveMilestoneCounts.has(key)) {
+            this.consecutiveMilestoneCounts.delete(key);
+            this.logger.debug(`Milestone ${milestone.milestoneLabel} not crossed for ${token.symbol}, resetting consecutive count`, {
+              tokenId: token.id.toString(),
+              milestoneValue: milestone.milestoneValue,
+            });
+          }
+        }
       }
     } catch (error) {
       this.logger.error(`Error processing token ${token.symbol}`, {
@@ -148,6 +176,24 @@ export class RunPollingCycleUseCase {
           tokenId: token.id.toString(),
           milestoneValue: milestone.milestoneValue,
         });
+        // Reset consecutive count since it was already notified
+        const key = this.getMilestoneKey(token.id, milestone.milestoneValue);
+        this.consecutiveMilestoneCounts.delete(key);
+        return;
+      }
+
+      // Check if milestone has been reached consecutively enough times
+      const key = this.getMilestoneKey(token.id, milestone.milestoneValue);
+      const consecutiveCount = this.consecutiveMilestoneCounts.get(key) || 0;
+      const threshold = this.envConfig.milestoneConsecutiveThreshold;
+
+      if (consecutiveCount < threshold) {
+        this.logger.info(`Milestone ${milestone.milestoneLabel} crossed for ${token.symbol} but not enough consecutive times (${consecutiveCount}/${threshold})`, {
+          tokenId: token.id.toString(),
+          milestoneValue: milestone.milestoneValue,
+          consecutiveCount,
+          threshold,
+        });
         return;
       }
 
@@ -162,12 +208,16 @@ export class RunPollingCycleUseCase {
         group
       );
 
+      // Reset consecutive count after successful notification
+      this.consecutiveMilestoneCounts.delete(key);
+
       this.currentStats.alertsSent++;
       this.logger.info(`Sent milestone alert for ${token.symbol}`, {
         milestoneLabel: milestone.milestoneLabel,
         milestoneValue: milestone.milestoneValue,
         group,
         tokenAddress: token.tokenAddress,
+        consecutiveCount,
       });
     } catch (error) {
       this.logger.error(`Failed to send milestone alert for ${token.symbol}`, {
@@ -179,6 +229,10 @@ export class RunPollingCycleUseCase {
       this.currentStats.errors++;
       // Note: We don't record the notification in the database if sending failed
     }
+  }
+
+  private getMilestoneKey(tokenId: bigint, milestoneValue: number): string {
+    return `${tokenId}-${milestoneValue}`;
   }
 
   private initializeStats(): CycleStats {
