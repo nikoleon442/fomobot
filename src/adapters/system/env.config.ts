@@ -4,6 +4,7 @@ import { z } from 'zod';
 const envSchema = z.object({
   // Polling configuration
   POLL_INTERVAL_SECONDS: z.string().transform(Number).default('60'),
+  MILESTONE_CONSECUTIVE_THRESHOLD: z.string().transform(Number).default('3'),
   
   // Provider configuration
   MARKET_CAP_PROVIDER: z.enum(['coingecko', 'cmc', 'birdeye', 'dexscreener']).default('dexscreener'),
@@ -41,6 +42,10 @@ export class EnvConfig {
 
   get pollIntervalSeconds(): number {
     return this.config.POLL_INTERVAL_SECONDS;
+  }
+
+  get milestoneConsecutiveThreshold(): number {
+    return this.config.MILESTONE_CONSECUTIVE_THRESHOLD;
   }
 
   get marketCapProvider(): 'coingecko' | 'cmc' | 'birdeye' | 'dexscreener' {
