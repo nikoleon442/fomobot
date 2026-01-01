@@ -90,6 +90,7 @@ export class RunPollingCycleUseCase {
       // Fetch market cap data
       const marketCaps = await this.marketCapProvider.getCaps(tokens);
       this.logger.info(`Fetched market cap data for ${Object.keys(marketCaps).length} tokens`);
+      this.logger.info(`Market cap data: ${JSON.stringify(marketCaps)}`);
 
       // Process each token
       for (const token of tokens) {
@@ -130,7 +131,7 @@ export class RunPollingCycleUseCase {
           const currentCount = this.consecutiveMilestoneCounts.get(key) || 0;
           const newCount = currentCount + 1;
           this.consecutiveMilestoneCounts.set(key, newCount);
-          this.logger.debug(`Milestone ${milestone.milestoneLabel} crossed for ${token.symbol}, consecutive count: ${newCount}`, {
+          this.logger.info(`Milestone ${milestone.milestoneLabel} crossed for ${token.symbol}, current market cap: ${currentCap}, initial market cap: ${token.initialMarketCapUsd}, consecutive count: ${newCount}`, {
             tokenId: token.id.toString(),
             milestoneValue: milestone.milestoneValue,
             count: newCount,
@@ -141,10 +142,14 @@ export class RunPollingCycleUseCase {
         } else {
           // Reset count if milestone is not crossed (breaks consecutive streak)
           if (this.consecutiveMilestoneCounts.has(key)) {
+            const previousCount = this.consecutiveMilestoneCounts.get(key);
             this.consecutiveMilestoneCounts.delete(key);
-            this.logger.debug(`Milestone ${milestone.milestoneLabel} not crossed for ${token.symbol}, resetting consecutive count`, {
+            this.logger.info(`Milestone ${milestone.milestoneLabel} not crossed for ${token.symbol}, resetting consecutive count (was ${previousCount})`, {
               tokenId: token.id.toString(),
               milestoneValue: milestone.milestoneValue,
+              previousCount,
+              currentMarketCap: currentCap,
+              initialMarketCap: token.initialMarketCapUsd,
             });
           }
         }
