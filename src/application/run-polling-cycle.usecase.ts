@@ -131,7 +131,7 @@ export class RunPollingCycleUseCase {
           const currentCount = this.consecutiveMilestoneCounts.get(key) || 0;
           const newCount = currentCount + 1;
           this.consecutiveMilestoneCounts.set(key, newCount);
-          this.logger.debug(`Milestone ${milestone.milestoneLabel} crossed for ${token.symbol}, current market cap: ${currentCap}, initial market cap: ${token.initialMarketCapUsd}, consecutive count: ${newCount}`, {
+          this.logger.info(`Milestone ${milestone.milestoneLabel} crossed for ${token.symbol}, current market cap: ${currentCap}, initial market cap: ${token.initialMarketCapUsd}, consecutive count: ${newCount}`, {
             tokenId: token.id.toString(),
             milestoneValue: milestone.milestoneValue,
             count: newCount,
