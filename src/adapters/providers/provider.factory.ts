@@ -4,6 +4,7 @@ import { CoinGeckoAdapter } from './coingecko.adapter';
 import { CMCAdapter } from './cmc.adapter';
 import { BirdeyeAdapter } from './birdeye.adapter';
 import { DexScreenerAdapter } from './dexscreener.adapter';
+import { GeckoTerminalAdapter } from './geckoterminal.adapter';
 import { EnvConfig } from '../system/env.config';
 
 @Injectable()
@@ -13,6 +14,7 @@ export class MarketCapProviderFactory {
     private readonly cmcAdapter: CMCAdapter,
     private readonly birdeyeAdapter: BirdeyeAdapter,
     private readonly dexScreenerAdapter: DexScreenerAdapter,
+    private readonly geckoTerminalAdapter: GeckoTerminalAdapter,
     private readonly envConfig: EnvConfig,
   ) {}
 
@@ -26,6 +28,8 @@ export class MarketCapProviderFactory {
         return this.birdeyeAdapter;
       case 'dexscreener':
         return this.dexScreenerAdapter;
+      case 'geckoterminal':
+        return this.geckoTerminalAdapter;
       default:
         return this.dexScreenerAdapter; // Default to DexScreener for Solana
     }
@@ -37,6 +41,7 @@ export class MarketCapProviderFactory {
       this.cmcAdapter,
       this.birdeyeAdapter,
       this.dexScreenerAdapter,
+      this.geckoTerminalAdapter,
     ];
   }
 }

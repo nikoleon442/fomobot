@@ -90,7 +90,6 @@ export class RunPollingCycleUseCase {
       // Fetch market cap data
       const marketCaps = await this.marketCapProvider.getCaps(tokens);
       this.logger.info(`Fetched market cap data for ${Object.keys(marketCaps).length} tokens`);
-      this.logger.info(`Market cap data: ${JSON.stringify(marketCaps)}`);
 
       // Process each token
       for (const token of tokens) {

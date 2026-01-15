@@ -13,6 +13,7 @@ import { CoinGeckoAdapter } from './adapters/providers/coingecko.adapter';
 import { CMCAdapter } from './adapters/providers/cmc.adapter';
 import { BirdeyeAdapter } from './adapters/providers/birdeye.adapter';
 import { DexScreenerAdapter } from './adapters/providers/dexscreener.adapter';
+import { GeckoTerminalAdapter } from './adapters/providers/geckoterminal.adapter';
 import { SupabaseReader } from './adapters/persistence/supabase-reader';
 import { SupabaseMilestoneConfigReader } from './adapters/persistence/supabase-milestone-config-reader';
 import { SupabaseMilestoneWriter } from './adapters/persistence/supabase-milestone-writer';
@@ -47,6 +48,7 @@ import { MarketCapProviderFactory } from './adapters/providers/provider.factory'
     CMCAdapter,
     BirdeyeAdapter,
     DexScreenerAdapter,
+    GeckoTerminalAdapter,
     MarketCapProviderFactory,
     
     // Data adapters

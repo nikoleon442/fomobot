@@ -13,7 +13,6 @@ export class CoinGeckoAdapter implements MarketCapProviderPort {
 
   async getCaps(tokens: Token[]): Promise<MarketCapData> {
     const result: MarketCapData = {};
-    
     // Process tokens in batches to avoid rate limits
     for (let i = 0; i < tokens.length; i += this.batchSize) {
       const batch = tokens.slice(i, i + this.batchSize);
