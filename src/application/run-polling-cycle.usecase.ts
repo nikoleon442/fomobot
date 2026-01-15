@@ -42,7 +42,7 @@ export class RunPollingCycleUseCase {
       await this.processGroup('fsm');
       
       // Process Issam group independently  
-      await this.processGroup('issam');
+      // await this.processGroup('issam');
 
       this.currentStats.endTime = this.clock.now();
       this.currentStats.duration = this.currentStats.endTime.getTime() - this.currentStats.startTime.getTime();
