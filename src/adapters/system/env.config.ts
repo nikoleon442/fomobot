@@ -7,7 +7,8 @@ const envSchema = z.object({
   MILESTONE_CONSECUTIVE_THRESHOLD: z.string().transform(Number).default('3'),
   
   // Provider configuration
-  MARKET_CAP_PROVIDER: z.enum(['coingecko', 'cmc', 'birdeye', 'dexscreener']).default('dexscreener'),
+  MARKET_CAP_PROVIDER: z.enum(['coingecko', 'cmc', 'birdeye', 'dexscreener', 'geckoterminal']).default('dexscreener'),
+  GECKOTERMINAL_NETWORK: z.string().default('solana'),
   
   // Supabase configuration
   SUPABASE_URL: z.string().min(1, 'SUPABASE_URL is required'),
@@ -48,8 +49,12 @@ export class EnvConfig {
     return this.config.MILESTONE_CONSECUTIVE_THRESHOLD;
   }
 
-  get marketCapProvider(): 'coingecko' | 'cmc' | 'birdeye' | 'dexscreener' {
+  get marketCapProvider(): 'coingecko' | 'cmc' | 'birdeye' | 'dexscreener' | 'geckoterminal' {
     return this.config.MARKET_CAP_PROVIDER;
+  }
+
+  get geckoTerminalNetwork(): string {
+    return this.config.GECKOTERMINAL_NETWORK;
   }
 
   get supabaseUrl(): string {
