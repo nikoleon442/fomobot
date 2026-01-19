@@ -6,6 +6,10 @@ const envSchema = z.object({
   POLL_INTERVAL_SECONDS: z.string().transform(Number).default('60'),
   MILESTONE_CONSECUTIVE_THRESHOLD: z.string().transform(Number).default('3'),
   
+  // Anti-spam / false alert protection
+  MAX_CAP_CHANGE_RATIO: z.string().transform(Number).default('3'), // Max allowed market cap change ratio per poll cycle
+  ALERT_COOLDOWN_SECONDS: z.string().transform(Number).default('300'), // Cooldown between alerts for same token (5 min default)
+  
   // Provider configuration
   MARKET_CAP_PROVIDER: z.enum(['coingecko', 'cmc', 'birdeye', 'dexscreener', 'geckoterminal']).default('dexscreener'),
   GECKOTERMINAL_NETWORK: z.string().default('solana'),
@@ -47,6 +51,14 @@ export class EnvConfig {
 
   get milestoneConsecutiveThreshold(): number {
     return this.config.MILESTONE_CONSECUTIVE_THRESHOLD;
+  }
+
+  get maxCapChangeRatio(): number {
+    return this.config.MAX_CAP_CHANGE_RATIO;
+  }
+
+  get alertCooldownSeconds(): number {
+    return this.config.ALERT_COOLDOWN_SECONDS;
   }
 
   get marketCapProvider(): 'coingecko' | 'cmc' | 'birdeye' | 'dexscreener' | 'geckoterminal' {

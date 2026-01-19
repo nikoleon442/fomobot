@@ -18,6 +18,10 @@ export class RunPollingCycleUseCase {
   private marketCapProvider: MarketCapProviderPort;
   // Track consecutive milestone crossings in memory: Map<`${tokenId}-${milestoneValue}`, count>
   private consecutiveMilestoneCounts: Map<string, number> = new Map();
+  // Track last known market caps for rate-of-change detection: Map<tokenAddress, { cap, timestamp }>
+  private lastKnownCaps: Map<string, { cap: number; timestamp: Date }> = new Map();
+  // Track last alert time per token for cooldown: Map<tokenId, lastAlertTime>
+  private tokenAlertCooldowns: Map<string, Date> = new Map();
 
   constructor(
     private readonly providerFactory: MarketCapProviderFactory,
@@ -112,6 +116,26 @@ export class RunPollingCycleUseCase {
       return;
     }
 
+    // Validate market cap change is within acceptable bounds (rate-of-change guard)
+    const validatedCap = this.validateMarketCapChange(token.tokenAddress, currentCap);
+    if (validatedCap === null) {
+      this.logger.warn(`Skipping token ${token.symbol} due to suspicious market cap change`, {
+        tokenAddress: token.tokenAddress,
+        reportedCap: currentCap,
+      });
+      this.currentStats.skipped++;
+      return;
+    }
+
+    // Check if token is on cooldown from recent alert
+    if (this.isTokenOnCooldown(token.id)) {
+      this.logger.info(`Token ${token.symbol} is on alert cooldown, skipping milestone checks`, {
+        tokenId: token.id.toString(),
+        tokenAddress: token.tokenAddress,
+      });
+      return;
+    }
+
     try {
       // Get all configured milestones - we need ALL to track consecutive counts
       const allMilestones = milestonePolicy.getAllMilestones();
@@ -121,7 +145,7 @@ export class RunPollingCycleUseCase {
         const key = this.getMilestoneKey(token.id, milestone.milestoneValue);
         const isCrossed = milestonePolicy.isMilestoneCrossed(
           token.initialMarketCapUsd,
-          currentCap,
+          validatedCap,
           milestone,
         );
         
@@ -130,14 +154,14 @@ export class RunPollingCycleUseCase {
           const currentCount = this.consecutiveMilestoneCounts.get(key) || 0;
           const newCount = currentCount + 1;
           this.consecutiveMilestoneCounts.set(key, newCount);
-          this.logger.info(`Milestone ${milestone.milestoneLabel} crossed for ${token.symbol}, current market cap: ${currentCap}, initial market cap: ${token.initialMarketCapUsd}, consecutive count: ${newCount}`, {
+          this.logger.info(`Milestone ${milestone.milestoneLabel} crossed for ${token.symbol}, current market cap: ${validatedCap}, initial market cap: ${token.initialMarketCapUsd}, consecutive count: ${newCount}`, {
             tokenId: token.id.toString(),
             milestoneValue: milestone.milestoneValue,
             count: newCount,
           });
 
           // Send alert if threshold is met
-          await this.sendMilestoneAlert(token, milestone, currentCap, group);
+          await this.sendMilestoneAlert(token, milestone, validatedCap, group);
         } else {
           // Reset count if milestone is not crossed (breaks consecutive streak)
           if (this.consecutiveMilestoneCounts.has(key)) {
@@ -147,7 +171,7 @@ export class RunPollingCycleUseCase {
               tokenId: token.id.toString(),
               milestoneValue: milestone.milestoneValue,
               previousCount,
-              currentMarketCap: currentCap,
+              currentMarketCap: validatedCap,
               initialMarketCap: token.initialMarketCapUsd,
             });
           }
@@ -215,6 +239,9 @@ export class RunPollingCycleUseCase {
       // Reset consecutive count after successful notification
       this.consecutiveMilestoneCounts.delete(key);
 
+      // Record cooldown to prevent multiple alerts for this token in quick succession
+      this.recordAlertForCooldown(token.id);
+
       this.currentStats.alertsSent++;
       this.logger.info(`Sent milestone alert for ${token.symbol}`, {
         milestoneLabel: milestone.milestoneLabel,
@@ -237,6 +264,63 @@ export class RunPollingCycleUseCase {
 
   private getMilestoneKey(tokenId: bigint, milestoneValue: number): string {
     return `${tokenId}-${milestoneValue}`;
+  }
+
+  /**
+   * Checks if the market cap change since last poll is within acceptable bounds.
+   * This protects against API returning wildly incorrect values.
+   * Returns the validated cap or null if the change is suspicious.
+   */
+  private validateMarketCapChange(tokenAddress: string, newCap: number): number | null {
+    const previous = this.lastKnownCaps.get(tokenAddress);
+    const now = this.clock.now();
+
+    // First time seeing this token - accept the value and store it
+    if (!previous) {
+      this.lastKnownCaps.set(tokenAddress, { cap: newCap, timestamp: now });
+      return newCap;
+    }
+
+    const ratio = newCap / previous.cap;
+    const maxChangeRatio = this.envConfig.maxCapChangeRatio;
+
+    // Check if change is within acceptable bounds (both up and down)
+    if (ratio > maxChangeRatio || ratio < 1 / maxChangeRatio) {
+      this.logger.warn(`Suspicious market cap change detected, rejecting value`, {
+        tokenAddress,
+        previousCap: previous.cap,
+        newCap,
+        changeRatio: ratio.toFixed(2),
+        maxAllowedRatio: maxChangeRatio,
+        timeSinceLastPoll: now.getTime() - previous.timestamp.getTime(),
+      });
+      // Don't update stored cap - keep the last known good value
+      return null;
+    }
+
+    // Valid change - update stored cap
+    this.lastKnownCaps.set(tokenAddress, { cap: newCap, timestamp: now });
+    return newCap;
+  }
+
+  /**
+   * Checks if a token is still on cooldown from a recent alert.
+   * Prevents spamming multiple milestone alerts for the same token.
+   */
+  private isTokenOnCooldown(tokenId: bigint): boolean {
+    const lastAlert = this.tokenAlertCooldowns.get(tokenId.toString());
+    if (!lastAlert) return false;
+
+    const cooldownMs = this.envConfig.alertCooldownSeconds * 1000;
+    const elapsed = this.clock.now().getTime() - lastAlert.getTime();
+    return elapsed < cooldownMs;
+  }
+
+  /**
+   * Records an alert timestamp for cooldown tracking.
+   */
+  private recordAlertForCooldown(tokenId: bigint): void {
+    this.tokenAlertCooldowns.set(tokenId.toString(), this.clock.now());
   }
 
   private initializeStats(): CycleStats {
